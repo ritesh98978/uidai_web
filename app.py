@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 
 # 1. Page Configuration
 st.set_page_config(page_title="UIDAI Sentinel Pro", layout="wide", initial_sidebar_state="expanded")
@@ -8,7 +9,7 @@ st.set_page_config(page_title="UIDAI Sentinel Pro", layout="wide", initial_sideb
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
-    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; border-left: 5px solid #2E86C1; }
+    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; border-left: 5px solid #2E86C1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     </style>
     """, unsafe_allow_stdio=True)
 
@@ -24,23 +25,41 @@ st.sidebar.markdown("""
 - **Status:** ✅ System Active
 """)
 
-@st.cache_data
+# 2. Robust Data Loading
+@st.cache_data(ttl=3600)
 def load_and_process():
-    df = pd.read_csv("aadhaar_master_summary.csv")
-    # Action Logic
-    df['Status'] = df['is_anomaly'].apply(lambda x: "🚨 SUSPICIOUS" if x == -1 else "✅ SAFE")
-    df['Action'] = df['is_anomaly'].apply(lambda x: "TRIGGER PHYSICAL AUDIT" if x == -1 else "ROUTINE MONITORING")
-    return df
+    # File check logic
+    file_name = "aadhaar_master_summary.csv"
+    if not os.path.exists(file_name):
+        return None
+    
+    try:
+        df = pd.read_csv(file_name)
+        # Action Logic
+        if 'is_anomaly' in df.columns:
+            df['Status'] = df['is_anomaly'].apply(lambda x: "🚨 SUSPICIOUS" if x == -1 else "✅ SAFE")
+            df['Action'] = df['is_anomaly'].apply(lambda x: "TRIGGER PHYSICAL AUDIT" if x == -1 else "ROUTINE MONITORING")
+        return df
+    except Exception as e:
+        return str(e)
 
 try:
     df = load_and_process()
+    
+    if df is None:
+        st.error("❌ Error: 'aadhaar_master_summary.csv' nahi mili. Please GitHub check karein!")
+        st.stop()
+    elif isinstance(df, str):
+        st.error(f"⚠️ Data Error: {df}")
+        st.stop()
+
     anomalies = df[df['is_anomaly'] == -1]
     safe_data = df[df['is_anomaly'] == 1]
 
     # --- TOP METRICS ---
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Records", f"{len(df):,}")
-    m2.metric("Anomaly Detected", len(anomalies), delta="-Critical", delta_color="inverse")
+    m2.metric("Anomaly Detected", len(anomalies))
     m3.metric("Safe Transactions", len(safe_data))
     m4.metric("Security Score", "98.8%")
 
@@ -51,27 +70,33 @@ try:
 
     with col1:
         st.subheader("🔴 ANOMALY ZONE: High-Risk Hotspots")
-        st.write("States requiring immediate administrative intervention:")
-        state_anomalies = anomalies.groupby('state').size().sort_values(ascending=False).head(10)
-        st.bar_chart(state_anomalies, color="#FF0000") # Pure Red for Danger
-        st.error("Action Required: High deviation detected in these regions.")
+        st.write("States requiring immediate administrative intervention (Status: -1):")
+        if not anomalies.empty:
+            state_anomalies = anomalies.groupby('state').size().sort_values(ascending=False).head(10)
+            st.bar_chart(state_anomalies, color="#FF0000") 
+            st.error("Action Required: High deviation detected in these regions.")
+        else:
+            st.write("No anomalies found.")
 
     with col2:
         st.subheader("🟢 SAFE ZONE: Normal Operations")
-        st.write("States exhibiting consistent and verified patterns:")
+        st.write("States exhibiting consistent patterns (Status: 1):")
         state_safe = safe_data.groupby('state').size().sort_values(ascending=False).head(10)
-        st.bar_chart(state_safe, color="#28B463") # Pure Green for Safe
+        st.bar_chart(state_safe, color="#28B463") 
         st.success("System Status: Operational patterns within normal limits.")
 
     st.markdown("---")
 
-    # --- ACTIONABLE AUDIT TABLE (The Khatarnak Part) ---
+    # --- ACTIONABLE AUDIT TABLE ---
     st.subheader("📋 AI PRIORITY AUDIT LIST & ACTION PLAN")
     st.write("Detailed breakdown of flagged pincodes with AI-recommended actions:")
     
     # Customizing the table view
-    display_df = anomalies[['state', 'district', 'pincode', 'total_updates', 'Status', 'Action']].sort_values(by='total_updates', ascending=False)
-    st.dataframe(display_df.head(25), use_container_width=True)
+    if not anomalies.empty:
+        display_df = anomalies[['state', 'district', 'pincode', 'total_updates', 'Status', 'Action']].sort_values(by='total_updates', ascending=False)
+        st.dataframe(display_df.head(25), use_container_width=True)
+    else:
+        st.info("No suspicious pincodes to display.")
 
     # --- SOCIETAL INSIGHT ---
     st.markdown("---")
