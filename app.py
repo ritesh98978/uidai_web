@@ -5,13 +5,13 @@ import os
 # 1. Page Configuration
 st.set_page_config(page_title="UIDAI Sentinel Pro", layout="wide", initial_sidebar_state="expanded")
 
-# Custom UI Styling
+# Custom UI Styling (FIXED: unsafe_allow_html)
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
     .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; border-left: 5px solid #2E86C1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     </style>
-    """, unsafe_allow_stdio=True)
+    """, unsafe_allow_html=True)
 
 st.title("🛡️ UIDAI SENTINEL: SECURITY & SOCIETAL DASHBOARD")
 st.markdown("Developed by: **Prem Kumar Sah**")
@@ -28,14 +28,11 @@ st.sidebar.markdown("""
 # 2. Robust Data Loading
 @st.cache_data(ttl=3600)
 def load_and_process():
-    # File check logic
     file_name = "aadhaar_master_summary.csv"
     if not os.path.exists(file_name):
         return None
-    
     try:
         df = pd.read_csv(file_name)
-        # Action Logic
         if 'is_anomaly' in df.columns:
             df['Status'] = df['is_anomaly'].apply(lambda x: "🚨 SUSPICIOUS" if x == -1 else "✅ SAFE")
             df['Action'] = df['is_anomaly'].apply(lambda x: "TRIGGER PHYSICAL AUDIT" if x == -1 else "ROUTINE MONITORING")
@@ -45,7 +42,6 @@ def load_and_process():
 
 try:
     df = load_and_process()
-    
     if df is None:
         st.error("❌ Error: 'aadhaar_master_summary.csv' nahi mili. Please GitHub check karein!")
         st.stop()
@@ -67,10 +63,8 @@ try:
 
     # --- THE CONTRAST: SAFE VS ANOMALY ---
     col1, col2 = st.columns(2)
-
     with col1:
         st.subheader("🔴 ANOMALY ZONE: High-Risk Hotspots")
-        st.write("States requiring immediate administrative intervention (Status: -1):")
         if not anomalies.empty:
             state_anomalies = anomalies.groupby('state').size().sort_values(ascending=False).head(10)
             st.bar_chart(state_anomalies, color="#FF0000") 
@@ -80,7 +74,6 @@ try:
 
     with col2:
         st.subheader("🟢 SAFE ZONE: Normal Operations")
-        st.write("States exhibiting consistent patterns (Status: 1):")
         state_safe = safe_data.groupby('state').size().sort_values(ascending=False).head(10)
         st.bar_chart(state_safe, color="#28B463") 
         st.success("System Status: Operational patterns within normal limits.")
@@ -89,22 +82,14 @@ try:
 
     # --- ACTIONABLE AUDIT TABLE ---
     st.subheader("📋 AI PRIORITY AUDIT LIST & ACTION PLAN")
-    st.write("Detailed breakdown of flagged pincodes with AI-recommended actions:")
-    
-    # Customizing the table view
     if not anomalies.empty:
         display_df = anomalies[['state', 'district', 'pincode', 'total_updates', 'Status', 'Action']].sort_values(by='total_updates', ascending=False)
         st.dataframe(display_df.head(25), use_container_width=True)
-    else:
-        st.info("No suspicious pincodes to display.")
 
     # --- SOCIETAL INSIGHT ---
     st.markdown("---")
     st.subheader("🌍 Societal Trend: Migration & Infrastructure Insight")
-    st.info("""
-    **Expert Analysis:** The high volume of address updates in industrial hubs (as seen in the Safe Zone) suggests active labor migration. 
-    **Policy Recommendation:** UIDAI should increase 'Permanent Enrolment Centres' in these top-performing green states to sustain the load.
-    """)
+    st.info("**Expert Analysis:** The high volume of address updates in industrial hubs suggest labor migration. **Recommendation:** Increase mobile Aadhaar units in green states.")
 
 except Exception as e:
     st.error(f"Critical System Error: {e}")
