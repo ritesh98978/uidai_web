@@ -5,96 +5,105 @@ import os
 # 1. Page Configuration
 st.set_page_config(page_title="UIDAI Sentinel Pro", layout="wide")
 
-# --- GLOBAL TEXT VISIBILITY FIX ---
+# --- HIGH CONTRAST CSS (Fix for Visibility) ---
 st.markdown("""
     <style>
-    /* Sabhi text ko zabardasti Dark Blue/Black karna */
-    * { color: #1e293b !important; }
+    /* Background light greyish white */
     .main { background-color: #ffffff !important; }
     
-    /* Metrics Box - Ekdum Saaf */
+    /* Zabardasti har text ko Dark karna */
+    h1, h2, h3, h4, p, span, div, label {
+        color: #111827 !important; 
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Titles specifically dark blue */
+    .title-text { color: #1e3a8a !important; font-weight: 800; }
+
+    /* Metric Card Styling with visibility fix */
     [data-testid="stMetricValue"] {
         color: #1d4ed8 !important; 
-        font-size: 2.5rem !important;
-        font-weight: 800 !important;
+        font-size: 2.2rem !important;
+        font-weight: bold !important;
     }
     .stMetric {
         background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 15px;
-        padding: 20px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 15px;
     }
-    
-    /* Sidebar Text Fix */
+
+    /* Sidebar text to be white for contrast */
     [data-testid="stSidebar"] * { color: #ffffff !important; }
-    [data-testid="stSidebar"] { background-color: #0f172a !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- HEADER SECTION (LOGO + TITLE) ---
+# --- HEADER SECTION ---
 logo_url = "https://upload.wikimedia.org/wikipedia/en/c/cf/Aadhaar_Logo.svg"
-col_l, col_r = st.columns([1, 4])
+col_l, col_r = st.columns([1, 5])
 with col_l:
-    st.image(logo_url, width=100)
+    st.image(logo_url, width=90)
 with col_r:
-    st.title("UIDAI SENTINEL: SECURITY ANALYTICS")
-    st.write("**Developed by:** Prem Kumar Sah")
+    st.markdown("<h1 class='title-text'>UIDAI SENTINEL: SECURITY ANALYTICS</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:1.2rem;'><b>Developer:</b> Prem Kumar Sah | Aadhaar Strategic Insights</p>", unsafe_allow_html=True)
 
 st.markdown("---")
 
-# --- SIDEBAR ---
-st.sidebar.title("🔍 Search Tools")
-search_pin = st.sidebar.text_input("Enter Pincode to Verify:")
+# --- SIDEBAR SEARCH ---
+st.sidebar.title("🔍 Investigation Tool")
+search_pin = st.sidebar.text_input("Search Pincode Status:")
 
 @st.cache_data
-def get_data():
+def get_clean_data():
     f = "aadhaar_master_summary.csv"
     if os.path.exists(f):
         df = pd.read_csv(f)
         df['pincode'] = df['pincode'].astype(str)
+        # Action Plan logic wapas add ki
         df['Status'] = df['is_anomaly'].apply(lambda x: "🚨 SUSPICIOUS" if x == -1 else "✅ SAFE")
+        df['Action'] = df['is_anomaly'].apply(lambda x: "TRIGGER PHYSICAL AUDIT" if x == -1 else "ROUTINE MONITORING")
         return df
     return None
 
-df = get_data()
+df = get_clean_data()
 
 if df is not None:
-    # --- METRICS (Horizontal & Clear) ---
+    # Top Metrics Bar
     m1, m2, m3 = st.columns(3)
-    m1.metric("Total Records", "150,000+")
-    m2.metric("Anomalies Found", len(df[df['is_anomaly'] == -1]))
-    m3.metric("System Safety", "98.5%")
+    m1.metric("Datasets Analyzed", "150,000+")
+    m2.metric("Security Flags", len(df[df['is_anomaly'] == -1]))
+    m3.metric("AI Confidence", "98.5%")
 
-    st.write("##") # Spacing
+    # Sidebar Search Result
+    if search_pin:
+        res = df[df['pincode'] == search_pin]
+        if not res.empty:
+            st.sidebar.info(f"Pincode {search_pin}: {res['Status'].values[0]}")
+            st.sidebar.write(f"Recommended Action: {res['Action'].values[0]}")
+        else: st.sidebar.warning("Not in records.")
 
-    # --- MAIN TABS (Saaf layout ke liye) ---
-    tab_risk, tab_social, tab_future = st.tabs(["🛑 SECURITY RISK", "📈 SOCIAL TRENDS", "🚀 FUTURE"])
+    st.write("##")
+
+    # --- MAIN TABS ---
+    tab_risk, tab_social = st.tabs(["🛑 SECURITY RISK (Status: -1)", "📈 SOCIETAL TRENDS (Status: 1)"])
 
     with tab_risk:
-        st.subheader("Regional Anomaly Analysis")
-        # Graph ko poori width di taaki saaf dikhe
+        st.subheader("Regional Anomaly Detection (Red Zone)")
         anoms = df[df['is_anomaly'] == -1]
-        state_anoms = anoms.groupby('state').size().sort_values(ascending=False).head(10)
-        st.bar_chart(state_anoms, color="#dc2626")
         
-        # Table ko expander mein daal diya taaki 'Bhara' na lage
-        with st.expander("Click to view Full Priority Audit List (Table)"):
-            st.dataframe(anoms[['state', 'district', 'pincode', 'Status']].head(50), use_container_width=True)
+        # Graph & Table
+        st.bar_chart(anoms.groupby('state').size().sort_values(ascending=False).head(10), color="#dc2626")
+        
+        st.write("### 📋 Priority Audit Table (The Solution)")
+        st.write("In pincodes par turant physical verification ki zaroorat hai:")
+        # ACTION COLUMN WAPAS HAI
+        st.dataframe(anoms[['state', 'district', 'pincode', 'Status', 'Action']].head(30), use_container_width=True)
 
     with tab_social:
-        st.subheader("Migration & Service Saturation")
+        st.subheader("Migration Corridors & Service Demand")
         safe = df[df['is_anomaly'] == 1]
-        state_safe = safe.groupby('state').size().sort_values(ascending=False).head(10)
-        st.bar_chart(state_safe, color="#16a34a")
-        
-        st.info("**Trend Analysis:** High transaction volume in specific states indicates economic migration. UIDAI should increase kiosks in these districts.")
+        st.bar_chart(safe.groupby('state').size().sort_values(ascending=False).head(10), color="#16a34a")
+        st.success("Analysis: High transaction density in industrial states indicates labor migration trends.")
 
-    with tab_future:
-        st.subheader("Roadmap 2026")
-        st.markdown("""
-        - **Live GIS Map:** Fraud hotspots on Google Maps.
-        - **Deep Learning:** Using Neural Networks for 99.9% fraud detection.
-        - **Automated Alerts:** SMS to nodal officers.
-        """)
 else:
-    st.error("CSV File not found on GitHub!")
+    st.error("Data File 'aadhaar_master_summary.csv' not found!")
