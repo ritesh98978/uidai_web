@@ -5,44 +5,65 @@ import os
 # 1. Page Configuration
 st.set_page_config(page_title="UIDAI Sentinel Pro", layout="wide", initial_sidebar_state="expanded")
 
-# Custom UI Styling - Metric aur Layout ko Pro banane ke liye
+# --- CUSTOM CSS (Fix for White Text & Better Visuals) ---
 st.markdown("""
     <style>
-    .main { background-color: #f8fafc; }
-    /* Metric Value ko highlight karne ke liye (White issue fix) */
+    /* Background and Main Text Fix */
+    .main { background-color: #f8fafc; color: #1e293b; }
+    
+    /* Heading and Subheader Color Fix */
+    h1, h2, h3, p, span { color: #0f172a !important; }
+    
+    /* Metric Card Styling */
     [data-testid="stMetricValue"] {
-        color: #1E3A8A !important; 
+        color: #1d4ed8 !important; 
         font-weight: bold;
-        font-size: 2.2rem !important;
+        font-size: 2rem !important;
     }
     .stMetric {
         background-color: #ffffff;
         padding: 20px;
         border-radius: 12px;
-        border-left: 6px solid #2E86C1;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-left: 6px solid #1d4ed8;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
     }
-    /* Tabs styling */
-    .stTabs [data-baseweb="tab-list"] { gap: 20px; }
-    .stTabs [data-baseweb="tab"] {
-        padding: 10px 20px;
-        background-color: #ffffff;
-        border-radius: 8px;
-        font-weight: bold;
+    
+    /* Tabs Text Color Fix */
+    .stTabs [data-baseweb="tab"] p {
+        color: #334155 !important;
+        font-weight: 600;
+    }
+    
+    /* Logo and Header Align */
+    .header-container {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🛡️ UIDAI SENTINEL: AI-DRIVEN INVESTIGATION TOOL")
-st.markdown("Developed by: **Prem Kumar Sah** | Security Analytics Framework")
+# --- HEADER WITH LOGO ---
+# UIDAI Official Logo URL
+logo_url = "https://upload.wikimedia.org/wikipedia/en/c/cf/Aadhaar_Logo.svg"
 
-# --- SIDEBAR: AI SPECS & SEARCH ---
+st.markdown(f"""
+    <div class="header-container">
+        <img src="{logo_url}" width="80">
+        <div>
+            <h1 style='margin:0;'>UIDAI SENTINEL: AI-DRIVEN INVESTIGATION TOOL</h1>
+            <p style='margin:0; font-weight:bold; color:#64748b;'>Developed by: Prem Kumar Sah | Security Analytics Framework</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- SIDEBAR ---
 st.sidebar.header("⚙️ AI ENGINE CORE")
 st.sidebar.info("Model: Isolation Forest | Dataset: 150K+ Records")
-
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔍 Pincode Audit Search")
-search_pincode = st.sidebar.text_input("Enter Pincode to Scan:", placeholder="e.g. 110001")
+search_pincode = st.sidebar.text_input("Enter Pincode:", placeholder="e.g. 110001")
 
 @st.cache_data(ttl=3600)
 def load_and_process():
@@ -50,7 +71,7 @@ def load_and_process():
     if not os.path.exists(file_name): return None
     try:
         df = pd.read_csv(file_name)
-        df['pincode'] = df['pincode'].astype(str) # Pincode search ke liye string
+        df['pincode'] = df['pincode'].astype(str)
         df['Status'] = df['is_anomaly'].apply(lambda x: "🚨 SUSPICIOUS" if x == -1 else "✅ SAFE")
         df['Action'] = df['is_anomaly'].apply(lambda x: "TRIGGER PHYSICAL AUDIT" if x == -1 else "ROUTINE MONITORING")
         return df
@@ -59,72 +80,60 @@ def load_and_process():
 df = load_and_process()
 
 if df is not None:
-    # --- SEARCH LOGIC ---
+    # Pincode Search Logic
     if search_pincode:
         res = df[df['pincode'].str.contains(search_pincode)]
         if not res.empty:
             st.sidebar.markdown(f"**Audit Result for {search_pincode}:**")
             status = res['Status'].values[0]
-            if "SUSPICIOUS" in status:
-                st.sidebar.error(f"Status: {status}")
-            else:
-                st.sidebar.success(f"Status: {status}")
-            st.sidebar.write(f"District: {res['district'].values[0]}")
+            if "SUSPICIOUS" in status: st.sidebar.error(f"Status: {status}")
+            else: st.sidebar.success(f"Status: {status}")
             st.sidebar.write(f"Action: {res['Action'].values[0]}")
         else:
-            st.sidebar.warning("Pincode not found in recent database.")
+            st.sidebar.warning("Pincode not found.")
 
     anomalies = df[df['is_anomaly'] == -1]
     safe_data = df[df['is_anomaly'] == 1]
 
     # --- TOP METRICS ---
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Datasets Analyzed", "150,000+") 
+    m1.metric("Records Analyzed", "150,000+") 
     m2.metric("Security Alerts", len(anomalies))
     m3.metric("Verified Safe", len(safe_data))
     m4.metric("AI Confidence", "98.8%")
 
     st.markdown("---")
 
-    # --- TABS: Saf-Suthra Layout ---
-    tab1, tab2, tab3 = st.tabs(["🔴 ANOMALY DETECTOR", "🟢 SOCIETAL TRENDS (SAFE)", "🚀 FUTURE SCALABILITY"])
+    # --- TABS (Fixed Styling) ---
+    tab1, tab2, tab3 = st.tabs(["🔴 ANOMALY DETECTOR", "🟢 SOCIETAL TRENDS", "🚀 FUTURE SCALABILITY"])
 
     with tab1:
         st.subheader("High-Risk Hotspots Identification")
         c1, c2 = st.columns([1, 1.5])
         with c1:
-            state_anomalies = anomalies.groupby('state').size().sort_values(ascending=False).head(10)
-            st.bar_chart(state_anomalies, color="#FF0000")
+            state_anoms = anomalies.groupby('state').size().sort_values(ascending=False).head(10)
+            st.bar_chart(state_anoms, color="#ef4444")
         with c2:
-            st.write("**Top Priority Audit List (Status: -1):**")
+            st.write("**Top Priority Audit List:**")
             st.dataframe(anomalies[['state', 'district', 'pincode', 'total_updates', 'Action']].head(15), use_container_width=True)
 
     with tab2:
-        st.subheader("Normal Patterns & Migration Corridors")
+        st.subheader("National Migration & Patterns")
         c3, c4 = st.columns([1, 1.5])
         with c3:
             state_safe = safe_data.groupby('state').size().sort_values(ascending=False).head(10)
-            st.bar_chart(state_safe, color="#28B463")
+            st.bar_chart(state_safe, color="#22c55e")
         with c4:
-            st.success("**Societal Pulse:** The high activity in green zones indicates healthy socio-economic growth and migration hubs. Recommended: Deploy more permanent kiosks here.")
+            st.success("**Societal Trend:** High address updates in industrial corridors indicate labor migration. UIDAI can use this to plan mobile camps.")
 
     with tab3:
-        st.subheader("Future Vision: 2026 and Beyond")
-        f1, f2 = st.columns(2)
-        with f1:
-            st.markdown("""
-            **1. GIS Fraud Mapping:**
-            - Mapbox integration se live 'Red Heatmaps' dikhana.
-            **2. Predictive Workload:**
-            - Agle 30 din ka workload predict karke machine allocation karna.
-            """)
-        with f2:
-            st.markdown("""
-            **3. Neural Network Engine:**
-            - Isolation Forest se upgrade karke **Deep Learning (LSTM)** ka use karna.
-            **4. Auto-Alerts:**
-            - Regional officials ko SMS notification bhejna jab fraud threshold cross ho.
-            """)
+        st.subheader("Future Vision: AI Roadmap")
+        st.write("Current system is designed for horizontal scaling.")
+        st.markdown("""
+        - **Phase 1:** GIS Fraud Mapping (Interactive India Heatmaps).
+        - **Phase 2:** LSTM Neural Networks for time-series forecasting.
+        - **Phase 3:** Automated SMS alerts to District Magistrates for high-alert pincodes.
+        """)
 
 else:
-    st.error("Data file 'aadhaar_master_summary.csv' check karein!")
+    st.error("Data file missing on GitHub.")
